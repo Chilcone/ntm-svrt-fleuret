@@ -2,7 +2,7 @@ import tensorflow as tf
 import glob
 import numpy as np
 from PIL import Image
-from skimage.util import view_as_windows
+#from skimage.util import view_as_windows
 import os
 
 patch_size = 4
@@ -18,9 +18,9 @@ class SetupDataset:
         images = np.array([np.array(Image.open(img).convert("L")) for img in image_names])/255.0
         return images
 
-    def extract_patches(self, category):
+    '''def extract_patches(self, category):
         patches = view_as_windows(category, (patch_size, patch_size), patch_size)  # non-overlapping patches
-        return patches
+        return patches'''
 
     def get_cnn_feature_vectors(self, dataset):
         extracted_features = []

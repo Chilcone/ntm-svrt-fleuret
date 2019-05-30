@@ -1,5 +1,5 @@
 import tensorflow as tf
-from generate_data import CopyTaskData, AssociativeRecallData, FleuretTaskData
+from generate_data import FleuretTaskData
 
 import logging
 logging.basicConfig(level=logging.INFO)
