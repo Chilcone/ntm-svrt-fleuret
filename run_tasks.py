@@ -26,7 +26,7 @@ parser.add_argument('--init_mode', type=str, default='constant', help='learned |
 parser.add_argument('--optimizer', type=str, default='RMSProp', help='RMSProp | Adam')
 parser.add_argument('--learning_rate', type=float, default=0.001)
 parser.add_argument('--max_grad_norm', type=float, default=50)
-parser.add_argument('--num_train_steps', type=int, default=20)
+parser.add_argument('--num_train_steps', type=int, default=5)
 parser.add_argument('--batch_size', type=int, default=64)
 
 parser.add_argument('--num_bits_per_vector', type=int, default=32)
@@ -80,7 +80,7 @@ class BuildTModel(BuildModel):
         super(BuildTModel, self).__init__(inputs)
 
         # define dense layer to classify the resulting feature vector
-        self.dense_layer = tf.layers.dense(inputs=self.final_output, units=1) #shape = (batch_size, 1)
+        self.dense_layer = tf.layers.dense(inputs=self.final_output, units=1, activation=tf.nn.sigmoid) #shape = (batch_size, 1)
 
         cross_entropy = tf.nn.sigmoid_cross_entropy_with_logits(labels=outputs, logits=self.dense_layer)
         self.loss = tf.reduce_sum(cross_entropy) / args.batch_size
@@ -101,7 +101,7 @@ with tf.variable_scope('root'):
     model = BuildTModel(inputs_placeholder, outputs_placeholder)
     initializer = tf.global_variables_initializer()
 
-data_generator = FleuretTaskData()
+data_generator = FleuretTaskData(args.batch_size)
 
 print("Initializing TensorFlow session...")
 sess = tf.Session()
@@ -120,7 +120,7 @@ for i in range(args.num_train_steps):
     data_generator.shuffle_dataset()
     print("Running epoch", i)
     for iter in range(args.dataset_size // args.batch_size):
-        inputs, labels = data_generator.get_batch(iter, args.batch_size)
+        inputs, labels = data_generator.get_batch(iter, args.batch_size, i)
         train_loss, final_state, _ = sess.run([model.loss, model.final_output, model.train_op],
                                           feed_dict={
                                               inputs_placeholder: inputs,
