@@ -1,5 +1,6 @@
 import tensorflow as tf
 from generate_data import FleuretTaskData
+import utils
 
 import logging
 logging.basicConfig(level=logging.INFO)
@@ -14,30 +15,28 @@ def str2bool(v):
 
 parser.add_argument('--mann', type=str, default='ntm', help='none | ntm')
 parser.add_argument('--num_layers', type=int, default=1)
-parser.add_argument('--num_units', type=int, default=32, help='size of the hidden state of LSTM')
+parser.add_argument('--num_units', type=int, default=256, help='size of the hidden state of LSTM')
 parser.add_argument('--num_memory_locations', type=int, default=128)
 parser.add_argument('--memory_size', type=int, default=32)
 parser.add_argument('--num_read_heads', type=int, default=2)
 parser.add_argument('--num_write_heads', type=int, default=2)
 parser.add_argument('--conv_shift_range', type=int, default=2, help='only necessary for ntm')
-parser.add_argument('--clip_value', type=int, default=32, help='Maximum absolute value of controller and outputs.')
+parser.add_argument('--clip_value', type=int, default=256, help='Maximum absolute value of controller and outputs.')
 parser.add_argument('--init_mode', type=str, default='constant', help='learned | constant | random')
 
-parser.add_argument('--optimizer', type=str, default='RMSProp', help='RMSProp | Adam')
+parser.add_argument('--optimizer', type=str, default='Adam', help='RMSProp | Adam')
 parser.add_argument('--learning_rate', type=float, default=0.001)
-parser.add_argument('--max_grad_norm', type=float, default=50)
+parser.add_argument('--max_grad_norm', type=float, default=5)
 parser.add_argument('--num_train_steps', type=int, default=5)
 parser.add_argument('--batch_size', type=int, default=64)
 
 parser.add_argument('--num_bits_per_vector', type=int, default=32)
 parser.add_argument('--num_vectors_per_image', type=int, default=64)
-parser.add_argument('--max_seq_len', type=int, default=32)
 parser.add_argument('--dataset_size', type=int, default=40000)
 
 parser.add_argument('--verbose', type=str2bool, default=False, help='if true stores logs')
 parser.add_argument('--experiment_name', type=str, required=True)
 parser.add_argument('--job-dir', type=str, required=False)
-parser.add_argument('--steps_per_eval', type=int, default=1000)
 parser.add_argument('--use_local_impl', type=str2bool, default=True, help='whether to use the repos local NTM implementation or the TF contrib version')
 
 args = parser.parse_args()
@@ -50,6 +49,7 @@ if args.mann == 'ntm':
 
 if args.verbose:
     import pickle  # library for serializing Python objects
+    utils.create_directory("head_logs")
     HEAD_LOG_FILE = 'head_logs/{0}.p'.format(args.experiment_name)
     GENERALIZATION_HEAD_LOG_FILE = 'head_logs/generalization_{0}.p'.format(args.experiment_name)
 
@@ -80,11 +80,16 @@ class BuildTModel(BuildModel):
         super(BuildTModel, self).__init__(inputs)
 
         # define dense layer to classify the resulting feature vector
-        self.dense_layer = tf.layers.dense(inputs=self.final_output, units=1, activation=tf.nn.sigmoid) #shape = (batch_size, 1)
+        self.dense_layer = tf.layers.dense(inputs=self.final_output, units=1, activation=tf.sigmoid, name="dense_fin") #shape = (batch_size, 1)
+
+        # Get dense layer weights for Tensorboard visualization
+        with tf.variable_scope('dense_fin', reuse=True):
+            w = tf.get_variable('kernel')
+        tf.summary.histogram("dense_weights", w)
 
         cross_entropy = tf.nn.sigmoid_cross_entropy_with_logits(labels=outputs, logits=self.dense_layer)
         self.loss = tf.reduce_sum(cross_entropy) / args.batch_size
-        tf_loss_summary = tf.summary.scalar('loss', self.loss)
+        tf.summary.scalar('loss', self.loss)
 
         if args.optimizer == 'RMSProp':
             optimizer = tf.train.RMSPropOptimizer(args.learning_rate, momentum=0.9, decay=0.9)
@@ -108,6 +113,8 @@ sess = tf.Session()
 sess.run(initializer)
 
 # Enable TensorBoard graph visualization
+utils.create_directory("logs")
+merged = tf.summary.merge_all()
 writer = tf.summary.FileWriter("logs", sess.graph)
 
 if args.verbose:
@@ -121,9 +128,10 @@ for i in range(args.num_train_steps):
     print("Running epoch", i)
     for iter in range(args.dataset_size // args.batch_size):
         inputs, labels = data_generator.get_batch(iter, args.batch_size, i)
-        train_loss, final_state, _ = sess.run([model.loss, model.final_output, model.train_op],
+        summary, train_loss, _= sess.run([merged, model.loss, model.train_op],
                                           feed_dict={
                                               inputs_placeholder: inputs,
                                               outputs_placeholder: labels,
                                           })
+        writer.add_summary(summary, i * (args.dataset_size // args.batch_size) + iter)
         logger.info('Train loss at step {0}, iter {1}: {2}'.format(i, iter, train_loss))
