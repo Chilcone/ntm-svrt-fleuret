@@ -15,13 +15,13 @@ def str2bool(v):
 
 parser.add_argument('--mann', type=str, default='ntm', help='none | ntm')
 parser.add_argument('--num_layers', type=int, default=1)
-parser.add_argument('--num_units', type=int, default=256, help='size of the hidden state of LSTM')
+parser.add_argument('--num_units', type=int, default=128, help='size of the hidden state of LSTM')
 parser.add_argument('--num_memory_locations', type=int, default=128)
 parser.add_argument('--memory_size', type=int, default=32)
 parser.add_argument('--num_read_heads', type=int, default=2)
 parser.add_argument('--num_write_heads', type=int, default=2)
 parser.add_argument('--conv_shift_range', type=int, default=2, help='only necessary for ntm')
-parser.add_argument('--clip_value', type=int, default=256, help='Maximum absolute value of controller and outputs.')
+parser.add_argument('--clip_value', type=int, default=128, help='Maximum absolute value of controller and outputs.')
 parser.add_argument('--init_mode', type=str, default='constant', help='learned | constant | random')
 
 parser.add_argument('--optimizer', type=str, default='Adam', help='RMSProp | Adam')
@@ -80,7 +80,9 @@ class BuildTModel(BuildModel):
         super(BuildTModel, self).__init__(inputs)
 
         # define dense layer to classify the resulting feature vector
-        self.dense_layer = tf.layers.dense(inputs=self.final_output, units=1, activation=tf.sigmoid, name="dense_fin") #shape = (batch_size, 1)
+        self.dense_layer = tf.layers.dense(inputs=self.final_output, units=1,
+                                           kernel_initializer=tf.contrib.layers.xavier_initializer(uniform=False),
+                                           activation=tf.sigmoid, name="dense_fin") #shape = (batch_size, 1)
 
         # Get dense layer weights for Tensorboard visualization
         with tf.variable_scope('dense_fin', reuse=True):

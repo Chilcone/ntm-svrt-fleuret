@@ -35,6 +35,7 @@ class FleuretTaskData:
     def load_images(self, images_path):
         print("Loading images...")
         image_names = glob.glob(images_path + "/*.png")
+        # Each image is 32x32 pixels
         images = np.array([np.array(Image.open(img).convert("L")) for img in image_names])/255.0
         return images
 
