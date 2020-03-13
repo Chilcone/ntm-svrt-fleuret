@@ -1,21 +1,19 @@
 import numpy as np
 import tensorflow as tf
-import os
+from tensorflow.python import keras
+
 
 def expand(x, dim, N):
-    return tf.concat([tf.expand_dims(x, dim) for _ in range(N)], axis=dim)
+    ndim = tf.shape(tf.shape(x))[0]
+    expand_idx = tf.keras.layers.Concatenate(axis=0)([tf.ones((tf.maximum(0, dim),), dtype=tf.int32), tf.reshape(N, (-1,)),
+                            tf.ones((tf.minimum(ndim - dim, ndim),), dtype=tf.int32)])
+    return tf.tile(tf.expand_dims(x, dim), expand_idx)
+
 
 def learned_init(units):
-    return tf.squeeze(tf.contrib.layers.fully_connected(tf.ones([1, 1]), units,
-        activation_fn=None, biases_initializer=None))
+    return tf.Variable(initial_value=keras.initializers.glorot_uniform()(shape=(units,)))
+
 
 def create_linear_initializer(input_size, dtype=tf.float32):
     stddev = 1.0 / np.sqrt(input_size)
-    return tf.truncated_normal_initializer(stddev=stddev, dtype=dtype)
-
-def create_directory(name):
-    try:
-        os.mkdir(name)
-        print("Directory " + name + " created.")
-    except FileExistsError:
-        print("Directory " + name + " already exists.")
+    return keras.initializers.truncated_normal(stddev=stddev, dtype=dtype)
