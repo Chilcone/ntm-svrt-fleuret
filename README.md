@@ -1,7 +1,7 @@
 ### Neural Turing Machines for modelling attention.
 
-NTM implementation was taken from: https://github.com/wchen342/NeuralTuringMachine\
-Dataset was generated using Fleuret framework: https://fleuret.org/git-tgz/svrt\
+NTM implementation was taken from: https://github.com/wchen342/NeuralTuringMachine.\
+Dataset was generated using Fleuret framework: https://fleuret.org/git-tgz/svrt.\
 This repository contains only images of problem 1. For generation of other problems, use the framework mentioned above.
 
 To execute a single training run:
